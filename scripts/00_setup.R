@@ -23,7 +23,8 @@ required_packages <- c(
   "corrplot",   # correlation heatmaps
   "scales",     # label formatting in ggplot
   "knitr",      # tables in Rmd
-  "kableExtra"  # styled tables in Rmd
+  "kableExtra", # styled tables in Rmd
+  "broom"       # tidy model output extraction
 )
 
 install_if_missing(required_packages)
@@ -40,6 +41,7 @@ suppressPackageStartupMessages({
   library(scales)
   library(knitr)
   library(kableExtra)
+  library(broom)
 })
 
 # 2. Path Configurations

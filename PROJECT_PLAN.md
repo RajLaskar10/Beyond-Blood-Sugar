@@ -262,6 +262,7 @@ library(corrplot)     # correlation heatmaps (if needed beyond ggplot)
 library(scales)       # label formatting in ggplot
 library(knitr)        # tables in Rmd
 library(kableExtra)   # styled tables in Rmd
+library(broom)        # tidy model output extraction
 ```
 
 Use `ranger` instead of `randomForest` — your datasets are 300K–430K rows and `randomForest` will be unacceptably slow.
@@ -328,6 +329,9 @@ Use `ranger` instead of `randomForest` — your datasets are 300K–430K rows an
 - Save all 6 files (train + test × 3 datasets) to `data/processed/`.
 - Decide on class imbalance handling: class weights in the model (preferred for `ranger`) vs. SMOTE on training data. Document rationale.
 - Apply imbalance handling to training sets only. **Never touch test sets.**
+
+> **Professor's note:** The professor indicated that resampling techniques for class imbalance will be covered in an upcoming lecture. The team should wait for that lecture before finalizing the resampling strategy in Issue #13. In the meantime, proceed with the train/test split (Issue #12) and prototype modeling using class weights as a temporary approach. Update Issue #13 after the lecture with the chosen method and rationale.
+
 **Output:** 6 CSV files in `data/processed/`, a documented imbalance strategy.
 
 ### Phase 5 — Model Training
@@ -353,12 +357,22 @@ Use `ranger` instead of `randomForest` — your datasets are 300K–430K rows an
 ### Phase 7 — Feature Importance & Temporal Comparison
 
 **Owner:** Namya (plots), Gaurav (extraction)
+
+> **Priority note:** The professor singled out the 2014 vs. 2022 comparison as the most interesting part of this project. Phase 7 is not a secondary analysis — it is the core intellectual contribution. Allocate the most time and polish here. The logistic regression coefficient comparison and feature importance comparison should be the centerpiece of the final report and presentation.
+
 **What:**
 - Extract permutation-based feature importance from all 6 models using the `vip` package. This ensures comparable importance scores across LR and RF.
+- **Logistic Regression Coefficient Comparison:**
+  - Extract the coefficient table (estimates, standard errors, z-values, p-values) from the 2014 and 2022 logistic regression models using `summary()$coefficients` or `broom::tidy()`.
+  - Create a side-by-side comparison table with columns: Variable, Coefficient_2014, PValue_2014, Coefficient_2022, PValue_2022, Direction_of_Change.
+  - Flag variables that are significant (p < 0.05) in one year but not the other.
+  - Flag variables where the coefficient magnitude changed substantially.
+  - Create a coefficient comparison plot (e.g., dot plot with confidence intervals, one panel per year, or a dumbbell chart showing 2014 vs 2022 coefficients).
+  - Owner: Gaurav (extraction), Namya (visualization).
 - Create side-by-side importance plots: 2014 vs. 2022 for each model type.
 - Identify features that rose or fell in importance across years.
 - Write the narrative interpretation of what changed.
-**Output:** Feature importance plots, a ranked comparison table, written interpretation.
+**Output:** `outputs/tables/lr_coefficient_comparison.csv`, `outputs/figures/fig_lr_coefficient_comparison.png`, feature importance plots, a ranked comparison table, written interpretation.
 
 ### Phase 8 — Subgroup Analysis
 
@@ -439,7 +453,7 @@ Create these labels in the repo:
 | # | Title | Owner | Labels | Depends on | Description |
 |---|-------|-------|--------|------------|-------------|
 | 12 | Create stratified train/test splits | Raj | `phase-4`, `data` | #8 | 80/20 stratified split on `Diabetes_Binary` for 2014, 2022, and combined. Use `set.seed(42)`. Save 6 CSVs to `data/processed/`. |
-| 13 | Decide and implement class imbalance strategy | Gaurav | `phase-4`, `modeling` | #12 | Evaluate options: class weights in `ranger` (preferred) vs. SMOTE. Implement chosen approach on training sets only. Document decision and rationale in issue comment. |
+| 13 | Decide and implement class imbalance strategy | Gaurav | `phase-4`, `modeling` | #12 | Evaluate options: class weights in ranger (preferred) vs. SMOTE. Implement chosen approach on training sets only. Document decision and rationale in issue comment. Hold off on finalizing until after the professor covers resampling in class. Use class weights as a temporary approach for prototyping. |
 
 **Phase 5**
 
@@ -466,6 +480,8 @@ Create these labels in the repo:
 | 22 | Extract permutation-based feature importance | Gaurav | `phase-7`, `modeling` | #14–19 | Use `vip::vip()` with `method = "permute"` on all 6 models. Save raw importance scores to `outputs/tables/`. |
 | 23 | Feature importance comparison plots | Namya | `phase-7`, `analysis`, `visualization` | #22 | Side-by-side bar plots: 2014 vs 2022 importance for LR, and separately for RF. Highlight features that moved significantly in rank. |
 | 24 | Temporal comparison narrative | All | `phase-7`, `analysis` | #22, #23 | Synthesize findings: which features became more/less important? Does this align with known public health trends? Write interpretation as a shared doc or issue comment. |
+| 34 | Extract and compare logistic regression coefficients across years | Gaurav | `phase-7`, `modeling`, `analysis` | #14, #15 | Extract coefficient tables with p-values from both logistic regression models. Build a comparison table highlighting variables that changed in significance or magnitude between years. This was specifically requested by the professor. |
+| 35 | Visualize logistic regression coefficient comparison | Namya | `phase-7`, `visualization` | #34 | Create a publication-quality coefficient comparison plot. Consider a dumbbell chart or forest plot showing 2014 vs 2022 coefficients with confidence intervals. |
 
 **Phase 8**
 
@@ -706,6 +722,38 @@ evaluate_model <- function(model, test_df, model_type, dataset_name) {
   )
 }
 ```
+
+### Phase 7: Logistic regression coefficient comparison
+
+```r
+library(broom)
+
+# Extract tidy coefficient tables
+coef_2014 <- tidy(lr_2014, conf.int = TRUE) %>%
+  rename(estimate_2014 = estimate, p_2014 = p.value, 
+         conf_low_2014 = conf.low, conf_high_2014 = conf.high) %>%
+  select(term, estimate_2014, p_2014, conf_low_2014, conf_high_2014)
+
+coef_2022 <- tidy(lr_2022, conf.int = TRUE) %>%
+  rename(estimate_2022 = estimate, p_2022 = p.value,
+         conf_low_2022 = conf.low, conf_high_2022 = conf.high) %>%
+  select(term, estimate_2022, p_2022, conf_low_2022, conf_high_2022)
+
+# Join and compare
+coef_comparison <- coef_2014 %>%
+  inner_join(coef_2022, by = "term") %>%
+  mutate(
+    sig_2014 = p_2014 < 0.05,
+    sig_2022 = p_2022 < 0.05,
+    sig_changed = sig_2014 != sig_2022,
+    coef_change = estimate_2022 - estimate_2014
+  ) %>%
+  arrange(desc(abs(coef_change)))
+
+write.csv(coef_comparison, paste0(PATH_TABLES, "lr_coefficient_comparison.csv"), row.names = FALSE)
+```
+
+Note: This is a skeleton. The actual column names will depend on what the data audit reveals. `lr_2014` and `lr_2022` refer to the saved logistic regression model objects from Phase 5.
 
 **Note:** The exact code above will need adjustment once we see the actual column names and data types from the audit. Treat this as a skeleton, not production code.
 
