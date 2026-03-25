@@ -1,0 +1,5 @@
+data/raw/*
+.Rhistory
+.RData
+outputs/models/*.rds
+.DS_Store

@@ -1,0 +1,106 @@
+library(tidyverse)
+library(ggplot2)
+library(reshape2)
+
+# Load primary dataset
+df <- read_csv("data/diabetes_binary_health_indicators_BRFSS2015.csv")
+
+# Quick checks
+dim(df)
+glimpse(df)
+summary(df)
+
+# ── 1. Class Distribution ──────────────────────────────────────────────────
+
+df %>%
+  count(Diabetes_binary) %>%
+  mutate(
+    label = ifelse(Diabetes_binary == 0, "No Diabetes", "Diabetes/Prediabetes"),
+    pct   = round(n / sum(n) * 100, 1)
+  ) %>%
+  ggplot(aes(x = label, y = n, fill = label)) +
+  geom_bar(stat = "identity", width = 0.5) +
+  geom_text(aes(label = paste0(pct, "%")), vjust = -0.8, size = 5, fontface = "bold") +
+  scale_y_continuous(
+    labels = scales::comma,
+    expand = expansion(mult = c(0, 0.15))   # extra space above bars for labels
+  ) +
+  scale_fill_manual(values = c("No Diabetes" = "#2EC4B6", "Diabetes/Prediabetes" = "#E76F51")) +
+  labs(title = "Class Distribution of Diabetes Status", x = "", y = "Number of Respondents") +
+  theme_minimal(base_size = 14) +
+  theme(
+    legend.position  = "none",
+    plot.title       = element_text(hjust = 0.5, face = "bold"),
+    axis.text.x      = element_text(size = 12),
+    plot.margin      = margin(10, 10, 10, 10)
+  )
+
+# ── 2. BMI Distribution by Diabetes Status ─────────────────────────────────
+
+df %>%
+  mutate(Diabetes_label = ifelse(Diabetes_binary == 0, "No Diabetes", "Diabetes/Prediabetes")) %>%
+  ggplot(aes(x = BMI, fill = Diabetes_label)) +
+  geom_histogram(bins = 50, alpha = 0.6, position = "identity") +
+  coord_cartesian(xlim = c(10, 70)) +        # coord_cartesian keeps all data, just zooms view
+  scale_y_continuous(labels = scales::comma) +
+  scale_fill_manual(values = c("No Diabetes" = "#2EC4B6", "Diabetes/Prediabetes" = "#E76F51")) +
+  labs(
+    title = "BMI Distribution by Diabetes Status",
+    x     = "BMI",
+    y     = "Count",
+    fill  = "Status"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title   = element_text(hjust = 0.5, face = "bold"),
+    legend.position = "bottom",
+    plot.margin  = margin(10, 20, 10, 10)
+  )
+
+# ── 3. Feature Correlation Heatmap ─────────────────────────────────────────
+
+png("data/correlation_heatmap.png", width = 2400, height = 2000, res = 200)
+
+ggplot(melted, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(
+    low      = "#4575B4",
+    mid      = "white",
+    high     = "#D73027",
+    midpoint = 0,
+    limits   = c(-1, 1),
+    name     = "Correlation"
+  ) +
+  labs(title = "Feature Correlation Matrix", x = "", y = "") +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title   = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.text.x  = element_text(angle = 45, hjust = 1, size = 6),
+    axis.text.y  = element_text(size = 6),
+    plot.margin  = margin(10, 40, 10, 10)
+  )
+
+dev.off()
+
+##
+# Load 2022 dataset
+df_2022 <- read_csv("data/LLCP2022_model.csv")
+
+# Basic overview
+dim(df_2022)
+names(df_2022)
+glimpse(df_2022)
+summary(df_2022)
+
+# Check which 2022 columns have acceptable missing rates
+df_2022 %>%
+  summarise(across(everything(), ~round(mean(is.na(.))*100, 1))) %>%
+  pivot_longer(everything(), names_to = "column", values_to = "pct_missing") %>%
+  arrange(desc(pct_missing))  
+
+df_2022 %>%
+  summarise(across(everything(), ~round(mean(is.na(.))*100, 1))) %>%
+  pivot_longer(everything(), names_to = "column", values_to = "pct_missing") %>%
+  arrange(desc(pct_missing)) %>%
+  print(n = 36)
+  
