@@ -163,6 +163,9 @@ beyond-blood-sugar/
 
 ## 7. Git Workflow & Conventions
 
+### Github URL
+https://github.com/RajLaskar10/Beyond-Blood-Sugar
+
 ### Branching strategy
 
 Use a simple **feature-branch workflow**:
