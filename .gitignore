@@ -1,5 +1,8 @@
 data/raw/*
+!data/raw/README.md
+data/processed/*.csv
 .Rhistory
 .RData
 outputs/models/*.rds
+outputs/tables/*.csv
 .DS_Store
