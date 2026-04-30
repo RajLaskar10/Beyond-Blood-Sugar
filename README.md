@@ -2,10 +2,6 @@
 
 **Investigating how lifestyle and demographic predictors of diabetes risk changed between 2014 and 2022 using CDC BRFSS survey data.**
 
-> DS 5110 — Northeastern University  
-> Team: Raj Laskar · Gaurav Bidani · Namya Singh  
-> Deadline: April 16, 2026
-
 ---
 
 ## Table of Contents
